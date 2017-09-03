@@ -19,6 +19,8 @@ import static android.opengl.GLES20.glClearColor;
 import static android.opengl.GLES20.glDrawArrays;
 import static android.opengl.GLES20.glEnableVertexAttribArray;
 import static android.opengl.GLES20.glGetAttribLocation;
+import static android.opengl.GLES20.glGetUniformLocation;
+import static android.opengl.GLES20.glUniformMatrix4fv;
 import static android.opengl.GLES20.glUseProgram;
 import static android.opengl.GLES20.glVertexAttribPointer;
 import static android.opengl.GLES20.glViewport;
@@ -32,6 +34,7 @@ import javax.microedition.khronos.opengles.GL10;
 
 import android.content.Context;
 import android.opengl.GLSurfaceView.Renderer;
+import android.opengl.Matrix;
 
 import com.eli.glesstep.LoggerConfig;
 import com.eli.glesstep.R;
@@ -41,6 +44,7 @@ import com.eli.glesstep.utils.TextResourceReader;
 public class AirHockeyRenderer implements Renderer {
     private static final String A_POSITION = "a_Position";
     private static final String A_COLOR = "a_Color";
+    private static final String U_MATRIX = "u_Matrix";
     private static final int POSITION_COMPONENT_COUNT = 2;
     private static final int COLOR_COMPONENT_COUNT = 3;
     private static final int BYTES_PER_FLOAT = 4;
@@ -53,27 +57,12 @@ public class AirHockeyRenderer implements Renderer {
     private int program;
     private int aPositionLocation;
     private int aColorLocation;
+    private int uMatrixLocation;
+
+    private final float[] projectMatrix = new float[16];
 
     public AirHockeyRenderer(Context context) {
         this.context = context;
-        /*
-        float[] tableVerticesWithTriangles = {
-            // Triangle Fan
-               0,     0,
-            -0.5f, -0.5f,
-             0.5f, -0.5f,
-             0.5f,  0.5f,
-            -0.5f,  0.5f,
-            -0.5f, -0.5f,
-
-            // Line 1
-            -0.5f, 0f,
-             0.5f, 0f,
-
-            // Mallets
-            0f, -0.25f,
-            0f,  0.25f
-        };*/
 
         //
         // Vertex data is stored in the following manner:
@@ -86,11 +75,11 @@ public class AirHockeyRenderer implements Renderer {
 
                 // Triangle Fan
                 0f, 0f, 1f, 1f, 1f,
-                -0.5f, -0.5f, 0.7f, 0.7f, 0.7f,
-                0.5f, -0.5f, 0.7f, 0.7f, 0.7f,
-                0.5f, 0.5f, 0.7f, 0.7f, 0.7f,
-                -0.5f, 0.5f, 0.7f, 0.7f, 0.7f,
-                -0.5f, -0.5f, 0.7f, 0.7f, 0.7f,
+                -0.5f, -0.8f, 0.7f, 0.7f, 0.7f,
+                0.5f, -0.8f, 0.7f, 0.7f, 0.7f,
+                0.5f, 0.8f, 0.7f, 0.7f, 0.7f,
+                -0.5f, 0.8f, 0.7f, 0.7f, 0.7f,
+                -0.5f, -0.8f, 0.7f, 0.7f, 0.7f,
 
                 // Line 1
                 -0.5f, 0f, 1f, 0f, 0f,
@@ -131,6 +120,7 @@ public class AirHockeyRenderer implements Renderer {
 
         aPositionLocation = glGetAttribLocation(program, A_POSITION);
         aColorLocation = glGetAttribLocation(program, A_COLOR);
+        uMatrixLocation = glGetUniformLocation(program, U_MATRIX);
 
         // Bind our data, specified by the variable vertexData, to the vertex
         // attribute at location A_POSITION_LOCATION.
@@ -162,6 +152,19 @@ public class AirHockeyRenderer implements Renderer {
     public void onSurfaceChanged(GL10 glUnused, int width, int height) {
         // Set the OpenGL viewport to fill the entire surface.
         glViewport(0, 0, width, height);
+
+        final float aspectRatio = width > height ?
+                (float) width / (float) height :
+                (float) height / (float) width;
+
+        //获得矩阵存储到数组
+        if (width > height) {
+            //landscape
+            Matrix.orthoM(projectMatrix, 0, -aspectRatio, aspectRatio, -1, 1, -1, 1);
+        } else {
+            //portrait
+            Matrix.orthoM(projectMatrix, 0, -1, 1, -aspectRatio, aspectRatio, -1, 1);
+        }
     }
 
     /**
@@ -172,6 +175,8 @@ public class AirHockeyRenderer implements Renderer {
     public void onDrawFrame(GL10 glUnused) {
         // Clear the rendering surface.
         glClear(GL_COLOR_BUFFER_BIT);
+
+        glUniformMatrix4fv(uMatrixLocation, 1, false, projectMatrix, 0);
 
         // Draw the table.
         glDrawArrays(GL_TRIANGLE_FAN, 0, 6);
