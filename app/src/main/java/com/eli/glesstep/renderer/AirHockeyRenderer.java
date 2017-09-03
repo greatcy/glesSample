@@ -49,7 +49,7 @@ public class AirHockeyRenderer implements Renderer {
     private static final String U_MATRIX = "u_Matrix";
     private static final int POSITION_COMPONENT_COUNT = 2;
     private static final int COLOR_COMPONENT_COUNT = 3;
-    private static final int BYTES_PER_FLOAT = 4;
+    public static final int BYTES_PER_FLOAT = 4;
     private static final int STRIDE =
             (POSITION_COMPONENT_COUNT + COLOR_COMPONENT_COUNT) * BYTES_PER_FLOAT;
 
