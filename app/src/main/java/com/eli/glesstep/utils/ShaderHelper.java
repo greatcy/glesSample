@@ -3,6 +3,7 @@ package com.eli.glesstep.utils;
 /**
  * Created by Administrator on 2017/9/3.
  */
+
 import static android.opengl.GLES20.GL_COMPILE_STATUS;
 import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
 import static android.opengl.GLES20.GL_LINK_STATUS;
@@ -21,6 +22,7 @@ import static android.opengl.GLES20.glGetShaderiv;
 import static android.opengl.GLES20.glLinkProgram;
 import static android.opengl.GLES20.glShaderSource;
 import static android.opengl.GLES20.glValidateProgram;
+
 import android.util.Log;
 
 import com.eli.glesstep.LoggerConfig;
@@ -28,17 +30,33 @@ import com.eli.glesstep.LoggerConfig;
 public class ShaderHelper {
     private static final String TAG = "ShaderHelper";
 
+    public static int buildProgram(String vertexShaderSource,
+                                   String fragmentShaderSource) {
+        int program;
+
+        int vertexShader = compileVertexShader(vertexShaderSource);
+        int fragmentShader = compileFragmentShader(fragmentShaderSource);
+
+        program = linkProgram(vertexShader, fragmentShader);
+
+        if (LoggerConfig.ON) {
+            validateProgram(program);
+        }
+
+        return program;
+    }
+
     /**
      * Loads and compiles a vertex shader, returning the OpenGL object ID.
      */
-    public static int compileVertexShader(String shaderCode) {
+    private static int compileVertexShader(String shaderCode) {
         return compileShader(GL_VERTEX_SHADER, shaderCode);
     }
 
     /**
      * Loads and compiles a fragment shader, returning the OpenGL object ID.
      */
-    public static int compileFragmentShader(String shaderCode) {
+    private static int compileFragmentShader(String shaderCode) {
         return compileShader(GL_FRAGMENT_SHADER, shaderCode);
     }
 
@@ -95,7 +113,7 @@ public class ShaderHelper {
      * Links a vertex shader and a fragment shader together into an OpenGL
      * program. Returns the OpenGL program object ID, or 0 if linking failed.
      */
-    public static int linkProgram(int vertexShaderId, int fragmentShaderId) {
+    private static int linkProgram(int vertexShaderId, int fragmentShaderId) {
         // Create a new program object.
         final int programObjectId = glCreateProgram();
 
@@ -147,7 +165,7 @@ public class ShaderHelper {
      * Validates an OpenGL program. Should only be called when developing the
      * application.
      */
-    public static boolean validateProgram(int programObjectId) {
+    private static boolean validateProgram(int programObjectId) {
         glValidateProgram(programObjectId);
         final int[] validateStatus = new int[1];
         glGetProgramiv(programObjectId, GL_VALIDATE_STATUS,

@@ -37,106 +37,48 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.Matrix;
 
+import com.eli.glesstep.Constant;
 import com.eli.glesstep.LoggerConfig;
 import com.eli.glesstep.R;
+import com.eli.glesstep.object.Mallet;
+import com.eli.glesstep.object.Table;
+import com.eli.glesstep.programs.ColorShaderProgram;
+import com.eli.glesstep.programs.TextureShaderProgram;
 import com.eli.glesstep.utils.MatrixHelper;
 import com.eli.glesstep.utils.ShaderHelper;
 import com.eli.glesstep.utils.TextResourceReader;
+import com.eli.glesstep.utils.TextureHelper;
 
 public class AirHockeyRenderer implements Renderer {
-    private static final String A_POSITION = "a_Position";
-    private static final String A_COLOR = "a_Color";
-    private static final String U_MATRIX = "u_Matrix";
-    private static final int POSITION_COMPONENT_COUNT = 2;
-    private static final int COLOR_COMPONENT_COUNT = 3;
-    public static final int BYTES_PER_FLOAT = 4;
-    private static final int STRIDE =
-            (POSITION_COMPONENT_COUNT + COLOR_COMPONENT_COUNT) * BYTES_PER_FLOAT;
-
-    private final FloatBuffer vertexData;
     private final Context context;
-
-    private int program;
-    private int aPositionLocation;
-    private int aColorLocation;
-    private final float modelMatrix[] = new float[16];
-
-    private int uMatrixLocation;
-
-    //1、正交投影矩阵,用来适配到不同屏幕上,保持比例一致
-    //2、透视投影生成的矩阵，用来实现透视投影的效果
+    //保留通过透视投影和平移生成的矩阵
     private final float[] projectMatrix = new float[16];
+
+    private final float[] modelMatrix = new float[16];
+
+    private Table table;
+    private Mallet mallet;
+
+    private TextureShaderProgram textureShaderProgram;
+    private ColorShaderProgram colorShaderProgram;
+
+    private int texture;
 
     public AirHockeyRenderer(Context context) {
         this.context = context;
-
-        float[] tableVerticesWithTriangles = {
-                // Order of coordinates: X, Y, R, G, B
-
-                // Triangle Fan
-                0f, 0f, 1f, 1f, 1f,
-                -0.5f, -0.8f, 0.7f, 0.7f, 0.7f,
-                0.5f, -0.8f, 0.7f, 0.7f, 0.7f,
-                0.5f, 0.8f, 0.7f, 0.7f, 0.7f,
-                -0.5f, 0.8f, 0.7f, 0.7f, 0.7f,
-                -0.5f, -0.8f, 0.7f, 0.7f, 0.7f,
-
-                // Line 1
-                -0.5f, 0f, 1f, 0f, 0f,
-                0.5f, 0f, 1f, 0f, 0f,
-
-                // Mallets
-                0f, -0.4f, 0f, 0f, 1f,
-                0f, 0.4f, 1f, 0f, 0f
-        };
-
-        vertexData = ByteBuffer
-                .allocateDirect(tableVerticesWithTriangles.length * BYTES_PER_FLOAT)
-                .order(ByteOrder.nativeOrder()).asFloatBuffer();
-
-        vertexData.put(tableVerticesWithTriangles);
     }
 
     @Override
     public void onSurfaceCreated(GL10 glUnused, EGLConfig config) {
-        glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+        glClearColor(0.0f, 0f, 0f, 0f);
 
-        String vertexShaderSource = TextResourceReader
-                .readTextFileFromResource(context, R.raw.simple_vertex_shader);
-        String fragmentShaderSource = TextResourceReader
-                .readTextFileFromResource(context, R.raw.simple_fragment_shader);
+        table = new Table();
+        mallet = new Mallet();
 
-        int vertexShader = ShaderHelper.compileVertexShader(vertexShaderSource);
-        int fragmentShader = ShaderHelper
-                .compileFragmentShader(fragmentShaderSource);
+        textureShaderProgram = new TextureShaderProgram(context);
+        colorShaderProgram = new ColorShaderProgram(context);
 
-        program = ShaderHelper.linkProgram(vertexShader, fragmentShader);
-
-        if (LoggerConfig.ON) {
-            ShaderHelper.validateProgram(program);
-        }
-
-        glUseProgram(program);
-
-        aPositionLocation = glGetAttribLocation(program, A_POSITION);
-        aColorLocation = glGetAttribLocation(program, A_COLOR);
-        uMatrixLocation = glGetUniformLocation(program, U_MATRIX);
-
-        // Bind our data, specified by the variable vertexData, to the vertex
-        // attribute at location A_POSITION_LOCATION.
-        vertexData.position(0);
-        glVertexAttribPointer(aPositionLocation, POSITION_COMPONENT_COUNT, GL_FLOAT,
-                false, STRIDE, vertexData);
-
-        glEnableVertexAttribArray(aPositionLocation);
-
-        // Bind our data, specified by the variable vertexData, to the vertex
-        // attribute at location A_COLOR_LOCATION.
-        vertexData.position(POSITION_COMPONENT_COUNT);
-        glVertexAttribPointer(aColorLocation, COLOR_COMPONENT_COUNT, GL_FLOAT,
-                false, STRIDE, vertexData);
-
-        glEnableVertexAttribArray(aColorLocation);
+        texture = TextureHelper.loadTexture(context, R.drawable.air_hockey_surface);
     }
 
     /**
@@ -152,19 +94,6 @@ public class AirHockeyRenderer implements Renderer {
     public void onSurfaceChanged(GL10 glUnused, int width, int height) {
         // Set the OpenGL viewport to fill the entire surface.
         glViewport(0, 0, width, height);
-
-//        final float aspectRatio = width > height ?
-//                (float) width / (float) height :
-//                (float) height / (float) width;
-//
-//        //获得矩阵存储到数组
-//        if (width > height) {
-//            //landscape
-//            Matrix.orthoM(projectMatrix, 0, -aspectRatio, aspectRatio, -1, 1, -1, 1);
-//        } else {
-//            //portrait
-//            Matrix.orthoM(projectMatrix, 0, -1, 1, -aspectRatio, aspectRatio, -1, 1);
-//        }
 
         //使用透视投影的方法
         MatrixHelper.perspectiveM(projectMatrix,
@@ -192,21 +121,19 @@ public class AirHockeyRenderer implements Renderer {
      */
     @Override
     public void onDrawFrame(GL10 glUnused) {
-        // Clear the rendering surface.
-        glClear(GL_COLOR_BUFFER_BIT);
+        GLES20.glClear(GL_COLOR_BUFFER_BIT);
 
-        glUniformMatrix4fv(uMatrixLocation, 1, false, projectMatrix, 0);
+        //table
+        textureShaderProgram.useProgram();
+        textureShaderProgram.setUniForm(projectMatrix, texture);
+        table.bindData(textureShaderProgram);
+        table.draw();
 
-        // Draw the table.
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 6);
-
-        // Draw the center dividing line.
-        glDrawArrays(GL_LINES, 6, 2);
-
-        // Draw the first mallet.
-        glDrawArrays(GL_POINTS, 8, 1);
-
-        // Draw the second mallet.
-        glDrawArrays(GL_POINTS, 9, 1);
+        //mallets
+        mallet = new Mallet();
+        colorShaderProgram.useProgram();
+        colorShaderProgram.setUniforms(projectMatrix);
+        mallet.bindData(colorShaderProgram);
+        mallet.draw();
     }
 }
