@@ -10,11 +10,13 @@ package com.eli.glesstep.renderer;
 
 
 import android.content.Context;
+import android.media.Image;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.Matrix;
 
 import com.eli.glesstep.R;
+import com.eli.glesstep.geometry.Geometry;
 import com.eli.glesstep.object.Mallet;
 import com.eli.glesstep.object.Puck;
 import com.eli.glesstep.object.Table;
@@ -31,6 +33,7 @@ import static android.opengl.GLES20.glClearColor;
 import static android.opengl.GLES20.glViewport;
 
 /**
+ * !使用右手坐标系
  * 整体思路是先准备好绘制顶点数组和渲染shader，在绘制
  * 时使用状态机，改变渲染的物体状态并绘制
  */
@@ -54,6 +57,9 @@ public class AirHockeyRenderer implements Renderer {
     private Mallet mallet;
     private Puck puck;
 
+    private final float invertedViewProjectionMatrix[] = new float[16];
+    private boolean malletPressed = false;
+    private Geometry.Point blueMalletPosition;
 
     public AirHockeyRenderer(Context context) {
         this.context = context;
@@ -71,6 +77,9 @@ public class AirHockeyRenderer implements Renderer {
         colorShaderProgram = new ColorShaderProgram(context);
 
         texture = TextureHelper.loadTexture(context, R.drawable.air_hockey_surface);
+
+        blueMalletPosition = new Geometry.Point(0f, mallet.height / 2f, 0.4f);
+
     }
 
     /**
@@ -107,6 +116,9 @@ public class AirHockeyRenderer implements Renderer {
         //合并视口和物体透视投影矩阵的变化
         Matrix.multiplyMM(viewProjectionMatrix, 0, projectMatrix, 0, viewMatrix, 0);
 
+        //记录当前视口和投影的逆矩阵
+        Matrix.invertM(invertedViewProjectionMatrix, 0, viewProjectionMatrix, 0);
+
         //draw table
         positionTableInScene();
         textureShaderProgram.useProgram();
@@ -118,14 +130,14 @@ public class AirHockeyRenderer implements Renderer {
         //在视口和透视投影已经完成的状态下，设置x = 0 (坐标系上-1,1) y=mallet.height / 2f (物体的高，用来透视),z=-0.4(table 中间的位置)
         positionObjectInScene(0f, mallet.height / 2f, -0.4f);
         colorShaderProgram.useProgram();
-        colorShaderProgram.setUniforms(modelViewProjectionMatrix, 1, 0, 0);
+        colorShaderProgram.setUniforms(modelViewProjectionMatrix, 1f, 0f, 0f);
         mallet.bindData(colorShaderProgram);
         mallet.draw();
 
-        //在视口和透视投影已经完成的状态下，设置x = 0 (坐标系上-1,1) y=mallet.height / 2f (物体的高，用来透视),z=-0.4(table 中间的位置)
+        //在视口和透视投影已经完成的状态下，设置x = 0 (坐标系上-1,1) y=mallet.height / 2f (物体的高，用来透视),z=0.4(table 中间的位置)
         positionObjectInScene(0f, mallet.height / 2f, 0.4f);
         colorShaderProgram.useProgram();
-        colorShaderProgram.setUniforms(modelViewProjectionMatrix, 1, 0, 0);
+        colorShaderProgram.setUniforms(modelViewProjectionMatrix, 0f, 0f, 1f);
         mallet.bindData(colorShaderProgram);
         mallet.draw();
 
@@ -151,11 +163,55 @@ public class AirHockeyRenderer implements Renderer {
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewProjectionMatrix, 0, modelMatrix, 0);
     }
 
-    public void handleTouchPress(float normalizeX,float normalizeY){
+    public void handleTouchPress(float normalizeX, float normalizeY) {
+        Geometry.Ray ray = convertNormalized2DPointToRay(normalizeX, normalizeY);
 
+        Geometry.Sphere malletBoundingSphere = new Geometry.Sphere(new Geometry.Point(blueMalletPosition.x,
+                blueMalletPosition.y,
+                blueMalletPosition.z),
+                mallet.height / 2f);
+
+        malletPressed = Geometry.intersects(malletBoundingSphere, ray);
     }
 
-    public void handleTouchDrag(float normalizeX,float normalizeY){
+    public void handleTouchDrag(float normalizeX, float normalizeY) {
+        if (malletPressed) {
+            Geometry.Ray ray = convertNormalized2DPointToRay(normalizeX, normalizeY);
 
+            Geometry.Plane plane = new Geometry.Plane(new Geometry.Point(0, 0, 0), new Geometry.Vector(0, 1, 0));
+
+            Geometry.Point touchedPoint = Geometry.intersects(ray, plane);
+            blueMalletPosition = new Geometry.Point(touchedPoint.x, mallet.height, touchedPoint.z);
+        }
+    }
+
+    /**
+     * @param normalizedX
+     * @param normalizedY
+     * @return 获得通过逆矩阵返回的3D射线
+     */
+    private Geometry.Ray convertNormalized2DPointToRay(float normalizedX, float normalizedY) {
+        final float[] nearPointNdc = {normalizedX, normalizedY, -1, 1};
+        final float[] farPointNdc = {normalizedX, normalizedY, 1, 1};
+
+        final float[] nearPointWorld = new float[4];
+        final float[] farPointWorld = new float[4];
+
+        Matrix.multiplyMV(nearPointWorld, 0, invertedViewProjectionMatrix, 0, nearPointNdc, 0);
+        Matrix.multiplyMV(farPointWorld, 0, invertedViewProjectionMatrix, 0, farPointNdc, 0);
+
+        divideByW(nearPointWorld);
+        divideByW(farPointWorld);
+
+        Geometry.Point nearPointRay = new Geometry.Point(nearPointWorld[0], nearPointWorld[1], nearPointWorld[2]);
+        Geometry.Point farPointRay = new Geometry.Point(farPointWorld[0], farPointWorld[1], farPointWorld[2]);
+
+        return new Geometry.Ray(nearPointRay, Geometry.vectorBetween(nearPointRay, farPointRay));
+    }
+
+    private void divideByW(float[] vector) {
+        vector[0] /= vector[3];
+        vector[1] /= vector[3];
+        vector[2] /= vector[3];
     }
 }
