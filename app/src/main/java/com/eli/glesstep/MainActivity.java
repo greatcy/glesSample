@@ -7,6 +7,8 @@ import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.MotionEvent;
+import android.view.View;
 import android.widget.Toast;
 
 import com.eli.glesstep.renderer.AirHockeyRenderer;
@@ -23,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         glSurfaceView = new GLSurfaceView(this);
+        final AirHockeyRenderer airHockeyRenderer = new AirHockeyRenderer(this);
 
         // Check if the system supports OpenGL ES 2.0.
         ActivityManager activityManager =
@@ -47,10 +50,9 @@ public class MainActivity extends AppCompatActivity {
             // Request an OpenGL ES 2.0 compatible context.
             glSurfaceView.setEGLContextClientVersion(2);
 
-            glSurfaceView.setEGLConfigChooser(8 , 8, 8, 8, 16, 0);
-
+            glSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0);
             // Assign our renderer.
-            glSurfaceView.setRenderer(new AirHockeyRenderer(this));
+            glSurfaceView.setRenderer(airHockeyRenderer);
             rendererSet = true;
         } else {
             /*
@@ -71,6 +73,34 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
+        glSurfaceView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event != null) {
+                    //标准化android 触摸事件坐标
+                    final float normalizedX = (event.getX() / (float) v.getWidth()) * 2 - 1;
+                    final float normalizedY = -(((event.getY()) / (float) v.getHeight()) * 2 - 1);
+
+                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                        glSurfaceView.queueEvent(new Runnable() {//在其他线程调用渲染器的方法
+                            @Override
+                            public void run() {
+                                airHockeyRenderer.handleTouchPress(normalizedX, normalizedY);
+                            }
+                        });
+                    } else if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                        glSurfaceView.queueEvent(new Runnable() {//在其他线程调用渲染器的方法
+                            @Override
+                            public void run() {
+                                airHockeyRenderer.handleTouchDrag(normalizedX, normalizedY);
+                            }
+                        });
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
         setContentView(glSurfaceView);
     }
 

@@ -9,36 +9,11 @@ package com.eli.glesstep.renderer;
  ***/
 
 
-import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
-import static android.opengl.GLES20.GL_FLOAT;
-import static android.opengl.GLES20.GL_LINES;
-import static android.opengl.GLES20.GL_POINTS;
-import static android.opengl.GLES20.GL_TRIANGLE_FAN;
-import static android.opengl.GLES20.glClear;
-import static android.opengl.GLES20.glClearColor;
-import static android.opengl.GLES20.glDrawArrays;
-import static android.opengl.GLES20.glEnableVertexAttribArray;
-import static android.opengl.GLES20.glGetAttribLocation;
-import static android.opengl.GLES20.glGetUniformLocation;
-import static android.opengl.GLES20.glUniformMatrix4fv;
-import static android.opengl.GLES20.glUseProgram;
-import static android.opengl.GLES20.glVertexAttribPointer;
-import static android.opengl.GLES20.glViewport;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL10;
-
 import android.content.Context;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.Matrix;
 
-import com.eli.glesstep.Constant;
-import com.eli.glesstep.LoggerConfig;
 import com.eli.glesstep.R;
 import com.eli.glesstep.object.Mallet;
 import com.eli.glesstep.object.Puck;
@@ -46,10 +21,19 @@ import com.eli.glesstep.object.Table;
 import com.eli.glesstep.programs.ColorShaderProgram;
 import com.eli.glesstep.programs.TextureShaderProgram;
 import com.eli.glesstep.utils.MatrixHelper;
-import com.eli.glesstep.utils.ShaderHelper;
-import com.eli.glesstep.utils.TextResourceReader;
 import com.eli.glesstep.utils.TextureHelper;
 
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
+
+import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
+import static android.opengl.GLES20.glClearColor;
+import static android.opengl.GLES20.glViewport;
+
+/**
+ * 整体思路是先准备好绘制顶点数组和渲染shader，在绘制
+ * 时使用状态机，改变渲染的物体状态并绘制
+ */
 public class AirHockeyRenderer implements Renderer {
     private final Context context;
 
@@ -165,5 +149,13 @@ public class AirHockeyRenderer implements Renderer {
         Matrix.translateM(modelMatrix, 0, x, y, z);
         //在已有的变换基础上增加物体平移
         Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewProjectionMatrix, 0, modelMatrix, 0);
+    }
+
+    public void handleTouchPress(float normalizeX,float normalizeY){
+
+    }
+
+    public void handleTouchDrag(float normalizeX,float normalizeY){
+
     }
 }
