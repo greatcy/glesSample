@@ -140,6 +140,29 @@ public class Geometry {
         }
 
         /**
+         * @param f
+         * @return 向量乘以常量
+         */
+        public Vector scale(float f) {
+            return new Vector(
+                    x * f,
+                    y * f,
+                    z * f);
+        }
+
+        /**
+         * 向量点乘结果
+         *
+         * @param other
+         * @return
+         */
+        public float doProduct(Vector other) {
+            return x * other.x +
+                    y * other.y +
+                    z * other.z;
+        }
+
+        /**
          * @return 向量的模
          */
         public float length() {
@@ -185,7 +208,13 @@ public class Geometry {
      * @return 相交点
      */
     public static Point intersects(Ray ray, Plane plane) {
-        return null;
+        Vector rayToPlaneVector = vectorBetween(ray.point, plane.center);
+
+        //根据射线方程p(t) = p0 + tu和平面方程n•(p - p0) = 0代入可得缩放因子的结果
+        float scaleFactor = rayToPlaneVector.doProduct(plane.normalVector) / ray.vector.doProduct(plane.normalVector);
+
+        Point intersectionPoint = ray.point.translate(ray.vector.scale(scaleFactor));
+        return intersectionPoint;
     }
 
     /**
