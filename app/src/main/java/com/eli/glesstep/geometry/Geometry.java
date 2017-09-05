@@ -2,6 +2,7 @@ package com.eli.glesstep.geometry;
 
 /**
  * Created by chenjunheng on 2017/9/4.
+ * 图形类定义
  */
 
 public class Geometry {
