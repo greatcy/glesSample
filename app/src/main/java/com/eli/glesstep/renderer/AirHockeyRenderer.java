@@ -41,6 +41,7 @@ import com.eli.glesstep.Constant;
 import com.eli.glesstep.LoggerConfig;
 import com.eli.glesstep.R;
 import com.eli.glesstep.object.Mallet;
+import com.eli.glesstep.object.Puck;
 import com.eli.glesstep.object.Table;
 import com.eli.glesstep.programs.ColorShaderProgram;
 import com.eli.glesstep.programs.TextureShaderProgram;
@@ -51,18 +52,24 @@ import com.eli.glesstep.utils.TextureHelper;
 
 public class AirHockeyRenderer implements Renderer {
     private final Context context;
-    //保留通过透视投影和平移生成的矩阵
-    private final float[] projectMatrix = new float[16];
 
     private final float[] modelMatrix = new float[16];
-
-    private Table table;
-    private Mallet mallet;
 
     private TextureShaderProgram textureShaderProgram;
     private ColorShaderProgram colorShaderProgram;
 
     private int texture;
+
+    //保留通过透视投影和平移生成的矩阵
+    private final float[] projectMatrix = new float[16];
+    private final float[] viewMatrix = new float[16];
+    private final float[] viewProjectionMatrix = new float[16];
+    private final float[] modelViewProjectionMatrix = new float[16];
+
+    private Table table;
+    private Mallet mallet;
+    private Puck puck;
+
 
     public AirHockeyRenderer(Context context) {
         this.context = context;
@@ -73,7 +80,8 @@ public class AirHockeyRenderer implements Renderer {
         glClearColor(0.0f, 0f, 0f, 0f);
 
         table = new Table();
-        mallet = new Mallet();
+        mallet = new Mallet(0.08f, 0.15f, 32);
+        puck = new Puck(0.06f, 0.02f, 32);
 
         textureShaderProgram = new TextureShaderProgram(context);
         colorShaderProgram = new ColorShaderProgram(context);
@@ -99,19 +107,8 @@ public class AirHockeyRenderer implements Renderer {
         MatrixHelper.perspectiveM(projectMatrix,
                 45, (float) width / (float) height, 1f, 10f);
 
-        //设置平移矩阵
-        Matrix.setIdentityM(modelMatrix, 0);
-
-        //旋转桌子
-        Matrix.translateM(modelMatrix, 0, 0f, 0f, -2.5f);
-        Matrix.rotateM(modelMatrix, 0, -60f, 1f, 0f, 0f);
-
-        //合并透视和平移矩阵
-        final float temp[] = new float[16];
-        Matrix.multiplyMM(temp, 0, projectMatrix, 0,
-                modelMatrix, 0);
-        System.arraycopy(temp, 0, projectMatrix,
-                0, temp.length);
+        //设置视口位置，替换之前我们对场景物体的移动旋转
+        Matrix.setLookAtM(viewMatrix, 0, 0f, 1.2f, 2.2f, 0f, 0f, 0f, 0f, 1f, 0f);
 
     }
 
@@ -123,17 +120,50 @@ public class AirHockeyRenderer implements Renderer {
     public void onDrawFrame(GL10 glUnused) {
         GLES20.glClear(GL_COLOR_BUFFER_BIT);
 
-        //table
+        //合并视口和物体透视投影矩阵的变化
+        Matrix.multiplyMM(viewProjectionMatrix, 0, projectMatrix, 0, viewMatrix, 0);
+
+        //draw table
+        positionTableInScene();
         textureShaderProgram.useProgram();
-        textureShaderProgram.setUniForm(projectMatrix, texture);
+        textureShaderProgram.setUniForm(modelViewProjectionMatrix, texture);
         table.bindData(textureShaderProgram);
         table.draw();
 
         //mallets
-        mallet = new Mallet();
+        //在视口和透视投影已经完成的状态下，设置x = 0 (坐标系上-1,1) y=mallet.height / 2f (物体的高，用来透视),z=-0.4(table 中间的位置)
+        positionObjectInScene(0f, mallet.height / 2f, -0.4f);
         colorShaderProgram.useProgram();
-        colorShaderProgram.setUniforms(projectMatrix);
+        colorShaderProgram.setUniforms(modelViewProjectionMatrix, 1, 0, 0);
         mallet.bindData(colorShaderProgram);
         mallet.draw();
+
+        //在视口和透视投影已经完成的状态下，设置x = 0 (坐标系上-1,1) y=mallet.height / 2f (物体的高，用来透视),z=-0.4(table 中间的位置)
+        positionObjectInScene(0f, mallet.height / 2f, 0.4f);
+        colorShaderProgram.useProgram();
+        colorShaderProgram.setUniforms(modelViewProjectionMatrix, 1, 0, 0);
+        mallet.bindData(colorShaderProgram);
+        mallet.draw();
+
+        // Draw the puck.
+        positionObjectInScene(0f, puck.height / 2f, 0f);
+        colorShaderProgram.useProgram();
+        colorShaderProgram.setUniforms(modelViewProjectionMatrix, 0.8f, 0.8f, 1f);
+        puck.bindData(colorShaderProgram);
+        puck.draw();
+    }
+
+    private void positionTableInScene() {
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.rotateM(modelMatrix, 0, -90f, 1f, 0f, 0f);
+        //在已有的变换基础上增加物体旋转
+        Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewProjectionMatrix, 0, modelMatrix, 0);
+    }
+
+    private void positionObjectInScene(float x, float y, float z) {
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, x, y, z);
+        //在已有的变换基础上增加物体平移
+        Matrix.multiplyMM(modelViewProjectionMatrix, 0, viewProjectionMatrix, 0, modelMatrix, 0);
     }
 }

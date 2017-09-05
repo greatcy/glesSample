@@ -1,7 +1,6 @@
 package com.eli.glesstep.object;
 
 import android.opengl.GLES20;
-import android.util.FloatMath;
 
 import com.eli.glesstep.geometry.Geometry;
 
@@ -50,6 +49,12 @@ public class ObjectBuilder {
         return (numPoints + 1) * 2;
     }
 
+    /**
+     * 创建冰球圆柱体
+     * @param puck
+     * @param numPoints
+     * @return
+     */
     static GeneratedData createPuck(Geometry.Cylinder puck, int numPoints) {
         //Puck 总点数
         int size = sizeOfCircleInVerteices(numPoints) +
@@ -63,6 +68,35 @@ public class ObjectBuilder {
 
         builder.appendCircle(puckTop, numPoints);
         builder.appendOpenCylinder(puck, numPoints);
+
+        return builder.build();
+    }
+
+    static GeneratedData createMallet(Geometry.Point center, float radius,
+                                      float height, int numPoints) {
+        int size = sizeOfCircleInVerteices(numPoints) * 2 +
+                sizeOfOpenCylinderInVertices(numPoints) * 2;
+
+        ObjectBuilder builder = new ObjectBuilder(size);
+
+        //创建底部
+        float baseHeight = height * 0.25f;
+        Geometry.Circle baseCircle = new Geometry.Circle(center.translateY(-baseHeight / 2f), radius);
+
+        Geometry.Cylinder baseCylinder = new Geometry.Cylinder(baseCircle.center.translateY(-baseHeight / 2f), radius, baseHeight);
+
+        builder.appendCircle(baseCircle, numPoints);
+        builder.appendOpenCylinder(baseCylinder, numPoints);
+
+        float handleHeight = height * 0.75f;
+        float handleRadius = radius / 3f;
+
+        Geometry.Circle handleCircle = new Geometry.Circle(center.translateY(height * 0.5f),
+                handleRadius);
+        Geometry.Cylinder handleCylinder = new Geometry.Cylinder(handleCircle.center.translateY(-handleHeight / 2f), handleRadius, handleHeight);
+
+        builder.appendCircle(handleCircle, numPoints);
+        builder.appendOpenCylinder(handleCylinder, numPoints);
 
         return builder.build();
     }
@@ -101,7 +135,7 @@ public class ObjectBuilder {
 
     private void appendOpenCylinder(Geometry.Cylinder cylinder, int numPoints) {
         final int startVertex = offset / FLOAT_PER_VERTEX;
-        final int numVertices = sizeOfCircleInVerteices(numPoints);
+        final int numVertices = sizeOfOpenCylinderInVertices(numPoints);
 
         final float yStart = cylinder.center.y - cylinder.height / 2f;
         final float yEnd = cylinder.center.y + cylinder.height / 2f;
