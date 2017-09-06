@@ -7,7 +7,7 @@ import android.opengl.GLES20;
 import android.opengl.GLUtils;
 import android.util.Log;
 
-import com.eli.glesstep.LoggerConfig;
+import com.eli.glesstep.Config;
 
 /**
  * Created by chenjunheng on 2017/9/4.
@@ -28,7 +28,7 @@ public class TextureHelper {
         final int[] textureObjectIds = new int[1];
         GLES20.glGenTextures(1, textureObjectIds, 0);
         if (textureObjectIds[0] == 0) {
-            if (LoggerConfig.ON) {
+            if (Config.LOG_ON) {
                 Log.w(TAG, "Could not gen a new texture object!");
             }
             return 0;
@@ -42,7 +42,7 @@ public class TextureHelper {
                 resourceId, options);
 
         if (bitmap == null) {
-            if (LoggerConfig.ON) {
+            if (Config.LOG_ON) {
                 Log.w(TAG, "resource id could not be decoded!");
             }
             GLES20.glDeleteTextures(1, textureObjectIds, 0);

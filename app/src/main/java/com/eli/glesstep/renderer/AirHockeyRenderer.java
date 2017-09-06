@@ -15,8 +15,10 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.Matrix;
 
+import com.eli.glesstep.Config;
 import com.eli.glesstep.R;
 import com.eli.glesstep.geometry.Geometry;
+import com.eli.glesstep.object.DebugRayLine;
 import com.eli.glesstep.object.Mallet;
 import com.eli.glesstep.object.Puck;
 import com.eli.glesstep.object.Table;
@@ -56,6 +58,7 @@ public class AirHockeyRenderer implements Renderer {
     private Table table;
     private Mallet mallet;
     private Puck puck;
+    private DebugRayLine debugRayLine;
 
     private final float invertedViewProjectionMatrix[] = new float[16];
     private boolean malletPressed = false;
@@ -135,11 +138,20 @@ public class AirHockeyRenderer implements Renderer {
         mallet.draw();
 
         //在视口和透视投影已经完成的状态下，设置x = 0 (坐标系上-1,1) y=mallet.height / 2f (物体的高，用来透视),z=0.4(table 中间的位置)
-        positionObjectInScene(0f, mallet.height / 2f, 0.4f);
+//        positionObjectInScene(0f, mallet.height / 2f, 0.4f);
+        positionObjectInScene(blueMalletPosition.x, blueMalletPosition.y, blueMalletPosition.z);
         colorShaderProgram.useProgram();
         colorShaderProgram.setUniforms(modelViewProjectionMatrix, 0f, 0f, 1f);
         mallet.bindData(colorShaderProgram);
         mallet.draw();
+
+        //draw debug line
+        if (debugRayLine != null && Config.IS_DEBUG) {
+            colorShaderProgram.useProgram();
+            colorShaderProgram.setUniforms(invertedViewProjectionMatrix, 0f, 1f, 0f);
+            debugRayLine.bindData(colorShaderProgram);
+            debugRayLine.draw();
+        }
 
         // Draw the puck.
         positionObjectInScene(0f, puck.height / 2f, 0f);
@@ -172,6 +184,9 @@ public class AirHockeyRenderer implements Renderer {
                 mallet.height / 2f);
 
         malletPressed = Geometry.intersects(malletBoundingSphere, ray);
+
+        //do draw debug line
+        debugRayLine = new DebugRayLine(normalized2DPointToRay(normalizeX, normalizeY));
     }
 
     public void handleTouchDrag(float normalizeX, float normalizeY) {
@@ -183,9 +198,33 @@ public class AirHockeyRenderer implements Renderer {
             Geometry.Point touchedPoint = Geometry.intersects(ray, plane);
             blueMalletPosition = new Geometry.Point(touchedPoint.x, mallet.height, touchedPoint.z);
         }
+
+        //do draw debug line
+        debugRayLine = new DebugRayLine(normalized2DPointToRay(normalizeX, normalizeY));
+    }
+
+    public void handleTouchUp(float normalizeX, float normalizeY) {
+        debugRayLine = null;
     }
 
     /**
+     * @param normalizedX
+     * @param normalizedY
+     * @return 屏幕转换到世界坐标的3D射线
+     */
+    private Geometry.Ray normalized2DPointToRay(float normalizedX, float normalizedY) {
+        final float[] nearPointNdc = {normalizedX, normalizedY, -1, 1};
+        final float[] farPointNdc = {normalizedX, normalizedY, 1, 1};
+
+        Geometry.Point nearPoint = new Geometry.Point(nearPointNdc[0], nearPointNdc[1], nearPointNdc[2]);
+        Geometry.Point farPoint = new Geometry.Point(farPointNdc[0], farPointNdc[1], farPointNdc[2]);
+
+        return new Geometry.Ray(nearPoint, Geometry.vectorBetween(nearPoint, farPoint));
+    }
+
+    /**
+     * 这里对屏幕射线进行还原是因为，需要检测相交性等计算，是在场景中的物体坐标未进行视口和投影转换之前做的
+     *
      * @param normalizedX
      * @param normalizedY
      * @return 获得通过逆矩阵返回的3D射线

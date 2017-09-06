@@ -51,6 +51,7 @@ public class ObjectBuilder {
 
     /**
      * 创建冰球圆柱体
+     *
      * @param puck
      * @param numPoints
      * @return
@@ -99,6 +100,40 @@ public class ObjectBuilder {
         builder.appendOpenCylinder(handleCylinder, numPoints);
 
         return builder.build();
+    }
+
+    // 创建射线
+    static GeneratedData createLine(Geometry.Point pointStart, Geometry.Vector direct) {
+        ObjectBuilder builder = new ObjectBuilder(2);
+
+        //计算另一个顶点的位置
+        Geometry.Point endPoint = pointStart.translate(direct);
+
+        builder.appendLine(pointStart, endPoint);
+        return builder.build();
+    }
+
+    /**
+     * 增加顶点数据到缓存区，增加gles函数到显示列表
+     *
+     * @param pointStart
+     * @param endPoint
+     */
+    private void appendLine(Geometry.Point pointStart, Geometry.Point endPoint) {
+        vertexData[0] = pointStart.x;
+        vertexData[1] = pointStart.y;
+        vertexData[2] = pointStart.z;
+
+        vertexData[3] = endPoint.x;
+        vertexData[4] = endPoint.y;
+        vertexData[5] = endPoint.z;
+
+        drawList.add(new DrawCommand() {
+            @Override
+            public void draw() {
+                GLES20.glDrawArrays(GLES20.GL_LINES, 0, 2);
+            }
+        });
     }
 
     /**

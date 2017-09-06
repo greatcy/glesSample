@@ -136,7 +136,7 @@ public class Geometry {
             return new Vector(
                     y * other.z - z * other.y,
                     z * other.x - x * other.z,
-                    x * other.y - y * other.z);
+                    x * other.y - y * other.x);
         }
 
         /**
@@ -213,8 +213,7 @@ public class Geometry {
         //根据射线方程p(t) = p0 + tu和平面方程n•(p - p0) = 0代入可得缩放因子的结果
         float scaleFactor = rayToPlaneVector.doProduct(plane.normalVector) / ray.vector.doProduct(plane.normalVector);
 
-        Point intersectionPoint = ray.point.translate(ray.vector.scale(scaleFactor));
-        return intersectionPoint;
+        return ray.point.translate(ray.vector.scale(scaleFactor));
     }
 
     /**

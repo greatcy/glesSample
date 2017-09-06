@@ -95,6 +95,13 @@ public class MainActivity extends AppCompatActivity {
                                 airHockeyRenderer.handleTouchDrag(normalizedX, normalizedY);
                             }
                         });
+                    } else if (event.getAction() == MotionEvent.ACTION_UP) {
+                        glSurfaceView.queueEvent(new Runnable() {
+                            @Override
+                            public void run() {
+                                airHockeyRenderer.handleTouchUp(normalizedX, normalizedY);
+                            }
+                        });
                     }
                     return true;
                 }

@@ -25,6 +25,7 @@ public class VertexArray {
     }
 
     /**
+     * 这里实际设置里GLES的状态机，表示接下来的绘制都在此状态下进行
      * 设置顶点Opengl 数据属性
      * @param dataOffset 偏移值
      * @param attributeLocation 属性ID
